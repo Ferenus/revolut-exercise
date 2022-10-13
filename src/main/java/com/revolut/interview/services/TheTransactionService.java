@@ -44,8 +44,6 @@ class TheTransactionService implements TransactionService {
 
     public ExecuteTransactionResult executeTransaction(long transactionId) {
         Transaction txn = null;
-        Account srcAccount;
-        Account dstAccount;
         try {
             transactionRepo.lockById(transactionId);
             txn = transactionRepo.getById(transactionId);
@@ -55,23 +53,8 @@ class TheTransactionService implements TransactionService {
                         "No changes. Transaction was already " + txn.getStatus());
             }
 
-            accountRepo.lockById(txn.getSourceId());
-            accountRepo.lockById(txn.getDestinationId());
+            //TODO: implement missing executeTransaction
 
-            srcAccount = accountRepo.getById(txn.getSourceId());
-            dstAccount = accountRepo.getById(txn.getDestinationId());
-
-            Amount toWithdraw = exchangeRateService.convert(txn.getAmount(), srcAccount.getCurrency());
-            if (!containsSufficientFunds(srcAccount, toWithdraw)) {
-                String message = String.format(INSUFFICIENT_FUNDS_MSG_TEMPLATE, srcAccount.getBalance(), toWithdraw);
-                return executionFailed(txn, ExecutionStatus.INSUFFICIENT_FUNDS, message);
-            }
-            Account newSrcAccount = srcAccount.withdraw(toWithdraw);
-            Amount toDeposit = exchangeRateService.convert(toWithdraw, dstAccount.getCurrency());
-            Account newDstAccount = dstAccount.deposit(toDeposit);
-
-            accountRepo.update(newSrcAccount);
-            accountRepo.update(newDstAccount);
             return executionSucceeded(txn);
         } catch (CouldNotLockResourceException cnlre) {
             return executionFailed(txn, ExecutionStatus.COULD_NOT_ACQUIRE_RESOURCES, cnlre.getMessage());
